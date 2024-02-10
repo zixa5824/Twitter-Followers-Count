@@ -1,20 +1,18 @@
-#include <iostream>
-#include <fstream>
+//THIS CODE IS DONE BY MAHMOUD ESSAM SHARSHIRA 022023001
 #include <vector>
-#include <algorithm>
-#include <unordered_map>
-#include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <chrono>
+
 using namespace std;
+using namespace std::chrono;
 
-class TwitterFollowersAnalyzer
-{
-
+class TwitterFollowersAnalyzer {
 private:
-    unordered_map<int,vector<int>> twitterGraph; // ADJACENCY LIST
-    vector<pair<int, int>> followersCount; // HASH TABLE OF THE KEY (INFLUENCER) AND THE VALUE (FOLLOWERS)
-    int duplicates = 0; // DUPLICATES FOUND IN THE DATA
-    int n; //DATA SIZE
+    unordered_map<int, unordered_set<int>> twitterGraph;
+    vector<pair<int, int>> followersCount;
+    int n;
 public:
     void read_csv(string filename)
     {
@@ -25,40 +23,49 @@ public:
             int user, follows;
             char comma;
             while (scanf("%d %c %d", &user, &comma, &follows) != EOF)
-                if(!checkDuplicates(twitterGraph[follows], user))
-                    twitterGraph[follows].emplace_back(user);
+                twitterGraph[follows].insert(user);
+
             calculateFollowers();
             fclose(file);
+            freopen("CON", "r", stdin);
         }
         else
         {
             printf("File not found.\n");
             exit(-1);
         }
-
     }
+
     void printAdjacencyList()
     {
-        for(pair<int,vector<int>> x: twitterGraph)
+        for (pair<int, unordered_set<int>> x : twitterGraph)
         {
-            for(int followers : x.second)
+            for (int followers : x.second)
                 printf("%d ", followers);
             printf("--> follows %d\n", x.first);
         }
+    }
 
-    }
-    void getDuplicates()
+    void getSize()
     {
-        printf("There are %d duplicates in this data.\n", duplicates);
+        printf("%d\n", followersCount.size());
     }
+
     void printFollowersCount()
     {
-        printf("Please enter n for TOP n EX: TOP 10 will list top 10 influencers.\n");
-        string userInput;
-        int number;
-        for(int i = 0; i < 10; i++)
+        freopen("CON", "r", stdin);
+        printf("Please enter n for TOP n (e.g., TOP 10 will list top 10 influencers): \n");
+        /*int number;
+        int numRead;
+        while ((numRead = scanf("%d", &number)) != 1 || number <= 0 || number > followersCount.size()) {
+            while (getchar() != '\n');
+            printf("Invalid input. Please enter a valid number within range: ");
+        }*/
+        for (int i = 0; i < 10; i++)
             printf("%d %d\n", followersCount[i].first, followersCount[i].second);
     }
+
+
     void heapSortFollowersCount()
     {
         n = followersCount.size();
@@ -66,31 +73,34 @@ public:
             heapify(followersCount, n, i);
 
         // Heap sort
-        for (int i = n - 1; i > 0; i--)
-        {
+        for (int i = n - 1; i > 0; i--) {
             swap(followersCount[0], followersCount[i]);
             heapify(followersCount, i, 0);
         }
     }
-private:
-    bool checkDuplicates(vector<int> v, int key)
+
+    /*void sortUsingSTL()
     {
-        if(v.size())
-        {
-             for(int x : v)
-                if(x == key)
-                {
-                    duplicates+=1;
-                    return true; //FOUND DUPLICATE!
-                }
+        sort(followersCount.begin(), followersCount.end(), [](const pair<int, int>& a, const pair<int, int>& b) {
+            return a.second > b.second;
+        });
+    }*/
+    void recommendUsers(int userId, double threshold)
+    {
+        unordered_set<int> closestUsers = findClosestUsers(userId, threshold);
+
+        printf("Recommendations for user %d with threshold %.3f:\n", userId, threshold);
+        for (int user : closestUsers) {
+            printf("%d\n", user);
         }
-        return false;
     }
+private:
     void calculateFollowers()
     {
-        for(pair<int,vector<int>> x : twitterGraph)
-            followersCount.push_back({x.first,x.second.size()});
+        for (pair<int, unordered_set<int>> x : twitterGraph)
+            followersCount.emplace_back(x.first, x.second.size());
     }
+
     void heapify(vector<pair<int, int>>& arr, int n, int i)
     {
         int largest = i;
@@ -103,22 +113,57 @@ private:
         if (right < n && arr[right].second < arr[largest].second)
             largest = right;
 
-        if (largest != i) {
+        if (largest != i)
+        {
             swap(arr[i], arr[largest]);
             heapify(arr, n, largest);
         }
     }
+    double calculateJaccardSimilarity(unordered_set<int> setA, unordered_set<int> setB)
+    {
+        int intersection = 0;
+        int unionSet = setA.size() + setB.size();
+
+        for (int user : setA) {
+            if (setB.find(user) != setB.end())
+            {
+                intersection++;
+                unionSet--;
+            }
+        }
+
+        if (unionSet == 0) return 0; // To handle the case of empty sets
+        return (double)intersection / unionSet;
+    }
+    unordered_set<int> findClosestUsers(int userId, double threshold)
+    {
+        unordered_set<int> closestUsers;
+
+        for (pair<int,unordered_set<int>> entry : twitterGraph)
+        {
+            if (entry.first == userId)
+                continue; // Skip the same user
+            double similarity = calculateJaccardSimilarity(twitterGraph[userId], entry.second);
+            if (similarity >= threshold)
+                closestUsers.insert(entry.first);
+        }
+
+        return closestUsers;
+    }
 };
 
-
-
-int main()
-{
+int main() {
+    auto start = high_resolution_clock::now();
     TwitterFollowersAnalyzer analyzer;
     analyzer.read_csv("twitter.csv");
-    //analyzer.getDuplicates();
     analyzer.heapSortFollowersCount();
+    //analyzer.sortUsingSTL();
     analyzer.printFollowersCount();
-    //analyzer.printAdjacencyList();
+    // analyzer.getSize();
+    // analyzer.printAdjacencyList();
+    analyzer.recommendUsers(214328887, 0.05);
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<seconds>(stop - start);
+    printf("Execution time: %d seconds\n",duration.count());
     return 0;
 }
