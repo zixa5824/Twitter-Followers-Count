@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1703918480 source:e:\work\masters\term2\algorithms\dr. ahmed bayoumi\project\easy\main.cpp
+	<iostream>
+	<fstream>
+	<vector>
+	<algorithm>
+	<unordered_map>
+	<sstream>
+	<string>
+
